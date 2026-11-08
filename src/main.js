@@ -8,6 +8,10 @@ const PLAYER_RE = /faceit\.com\/(?:[a-z]{2}(?:-[a-z]{2})?\/)?players\/([^/?#\s]+
 
 const $ = id => document.getElementById(id);
 const bar = $('bar'), matchPanel = $('matchPanel'), playerPanel = $('playerPanel'), seasonPanel = $('seasonPanel');
+const previewPanel = $('previewPanel'), previewLink = $('previewLink'), previewCreate = $('previewCreate');
+const previewOptions = $('previewOptions'), previewTeamLogos = $('previewTeamLogos');
+const previewTitle = $('previewTitle'), previewSubtitle = $('previewSubtitle'), previewDate = $('previewDate');
+const previewTime = $('previewTime'), previewFormat = $('previewFormat'), previewTheme = $('previewTheme');
 const input = $('input'), createBtn = $('create'), teamLogos = $('teamLogos'), teamLogoFile = $('teamLogoFile');
 const pMatch = $('pMatch'), pMap = $('pMap'), pPlayer = $('pPlayer'), pNick = $('pNick'), pTheme = $('pTheme');
 const pPhotoBtn = $('pPhotoBtn'), pPhotoFile = $('pPhotoFile'), pPhotoUrl = $('pPhotoUrl'), pCreate = $('pCreate');
@@ -16,6 +20,7 @@ const statusEl = $('status'), card = $('card');
 
 let mode = 'match';
 let current = null;
+let preview = null;
 let player = null;
 let userPhoto = null;
 let matchCache = null;
@@ -128,6 +133,79 @@ function renderMatch(d) {
     </div>`;
 }
 
+function previewTeam(fac, side) {
+  const id = fac?.faction_id || '';
+  const faceitName = fac?.name || `Команда ${side}`;
+  return { id, faceitName, name: (id && getTeamName(id)) || faceitName, logo: (id && getTeamLogo(id)) || fac?.avatar || '' };
+}
+
+function previewMoscowDate(timestamp) {
+  if (!Number.isFinite(Number(timestamp)) || Number(timestamp) <= 0) return { date: '', time: '' };
+  const date = new Date(Number(timestamp) * 1000);
+  if (Number.isNaN(date.getTime())) return { date: '', time: '' };
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date).map(p => [p.type, p.value]));
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+function renderPreview(d) {
+  const teams = [1, 2].map(side => previewTeam(d.match.teams?.[`faction${side}`], side));
+  const date = previewDate.value ? previewDate.value.split('-').reverse().join('.') : 'TBA';
+  const time = previewTime.value ? `${previewTime.value} МСК` : 'TBA';
+  const footerLogo = getFooterLogo();
+  const title = previewTitle.value.trim() || 'ПРЕДСТОЯЩИЙ МАТЧ';
+  const subtitle = previewSubtitle.value.trim() || 'MATCH PREVIEW';
+  card.className = `preview-mode${previewTheme.value === 'dark' ? ' preview-dark' : ''}`;
+  card.innerHTML = `<div class="preview-art">
+    <div class="preview-frame"></div>
+    <div class="preview-top"><span class="preview-label">● MATCH DAY</span><span>CS2 / FACEIT</span></div>
+    <div class="preview-heading"><small>ПРЕДСТОЯЩИЙ МАТЧ</small><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div>
+    <div class="preview-versus">
+      ${teams.map((t, i) => `${i ? '<div class="preview-vs">VS</div>' : ''}<div class="preview-team">${logo(t.logo, t.name)}<div class="preview-team-name${t.name.length > 15 ? ' long' : ''}">${esc(t.name)}</div></div>`).join('')}
+    </div>
+    <div class="preview-info"><div><small>ДАТА</small>${esc(date)}</div><div class="preview-time"><small>НАЧАЛО</small>${esc(time)}</div><div><small>ФОРМАТ</small>${esc(previewFormat.value.trim() || 'TBA')}</div></div>
+    <div class="preview-footer"><span>VK.RU / КАБАНЫ ЕСПОРТ</span><span class="preview-brand">${footerLogo ? `<img src="${esc(footerLogo)}" alt="">` : ''} КАБАНЫ ЕСПОРТС</span></div>
+    <div class="preview-accent"></div>
+  </div>`;
+}
+
+function renderPreviewTeamControls() {
+  const teams = [1, 2].map(side => previewTeam(preview.match.teams?.[`faction${side}`], side));
+  previewTeamLogos.innerHTML = teams.map((t, i) => `<div class="team-edit">
+    <button class="btn" data-preview-team="${i + 1}">Логотип ${i + 1}</button>
+    <input class="field" data-preview-name="${i + 1}" value="${esc(t.id ? getTeamName(t.id) || '' : '')}" placeholder="${esc(t.faceitName)}" maxlength="40" aria-label="Название команды ${i + 1}" autocomplete="off">
+  </div>`).join('');
+}
+
+async function generatePreview() {
+  const link = previewLink.value.trim().match(MATCH_RE);
+  if (!link) return setStatus('Не нашёл ссылку на матч FACEIT. Вставьте ссылку вида faceit.com/.../room/1-...', true);
+  previewCreate.disabled = true;
+  setStatus('⏳ Загрузка данных матча...');
+  try {
+    const match = await fetchMatch(link[1]);
+    if (!match.teams?.faction1 || !match.teams?.faction2) throw new Error('FACEIT пока не предоставил обе команды матча.');
+    if (!match.teams.faction1.faction_id || !match.teams.faction2.faction_id) throw new Error('FACEIT пока не предоставил идентификаторы обеих команд.');
+    preview = { matchId: link[1], match };
+    const scheduled = previewMoscowDate(match.scheduled_at);
+    previewTitle.value = match.competition_name || '';
+    previewSubtitle.value = '';
+    previewDate.value = scheduled.date;
+    previewTime.value = scheduled.time;
+    previewFormat.value = Number(match.best_of) > 0 ? `BO${match.best_of}` : '';
+    previewOptions.hidden = false;
+    renderPreviewTeamControls();
+    setStatus(match.status === 'FINISHED' ? 'Матч уже завершён; превью создано по доступным данным.' : '✅ Превью готово! Проверьте дату, время и названия.');
+    show();
+  } catch (e) {
+    setStatus(e instanceof TypeError ? 'Не удалось разобрать данные матча.' : e.message, true);
+  } finally {
+    previewCreate.disabled = false;
+  }
+}
+
 function renderPlayer(p) {
   const nick = pNick.value.trim() || p.nick;
   const photo = userPhoto || (p.avatar ? imageSrc(p.avatar) : '');
@@ -151,10 +229,12 @@ function renderPlayer(p) {
 
 function show() {
   const hasMatch = mode === 'match' && current;
+  const hasPreview = mode === 'preview' && preview;
   const hasPlayer = mode === 'player' && player;
   if (hasMatch) renderMatch(current);
+  else if (hasPreview) renderPreview(preview);
   else if (hasPlayer) renderPlayer(player);
-  card.hidden = !(hasMatch || hasPlayer);
+  card.hidden = !(hasMatch || hasPreview || hasPlayer);
   dlBtn.disabled = card.hidden;
   cpBtn.disabled = card.hidden;
 }
@@ -272,7 +352,8 @@ async function runExport(action, doneText) {
   }
 }
 
-const fileName = () => (mode === 'player' ? `${player.matchId}-${player.nick}` : current.matchId);
+const fileName = () => mode === 'player' ? `${player.matchId}-${player.nick}`
+  : mode === 'preview' ? `preview-${preview.matchId}` : current.matchId;
 
 document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
   mode = tab.dataset.mode;
@@ -280,10 +361,42 @@ document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', (
   bar.hidden = mode === 'season';
   seasonPanel.hidden = mode !== 'season';
   matchPanel.hidden = mode !== 'match';
+  previewPanel.hidden = mode !== 'preview';
   playerPanel.hidden = mode !== 'player';
   setStatus('');
   show();
 }));
+
+previewCreate.onclick = generatePreview;
+previewLink.addEventListener('keydown', e => { if (e.key === 'Enter') generatePreview(); });
+[previewTitle, previewSubtitle, previewDate, previewTime, previewFormat].forEach(el => {
+  el.addEventListener('input', () => { if (mode === 'preview' && preview) show(); });
+});
+previewTheme.addEventListener('change', () => { if (mode === 'preview' && preview) show(); });
+previewTeamLogos.addEventListener('click', e => {
+  const btn = e.target.closest('[data-preview-team]');
+  if (!btn || !preview) return;
+  const side = btn.dataset.previewTeam;
+  const id = preview.match.teams?.[`faction${side}`]?.faction_id;
+  if (!id) return setStatus('FACEIT пока не предоставил идентификатор команды.', true);
+  teamLogoFile.dataset.team = id;
+  teamLogoFile.click();
+});
+previewTeamLogos.addEventListener('input', e => {
+  if (!e.target.matches('[data-preview-name]') || !preview) return;
+  const id = preview.match.teams?.[`faction${e.target.dataset.previewName}`]?.faction_id;
+  if (!id) return setStatus('FACEIT пока не предоставил идентификатор команды.', true);
+  try {
+    setTeamName(id, e.target.value.trim());
+    if (current && matchCache?.matchId === current.matchId) {
+      current = buildData(matchCache, current.title);
+      renderTeamLogoButtons(current);
+    }
+    show();
+  } catch {
+    setStatus('Не удалось сохранить название команды в браузере.', true);
+  }
+});
 
 createBtn.onclick = generate;
 input.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
@@ -298,6 +411,7 @@ teamLogos.addEventListener('input', e => {
   if (!e.target.matches('[data-team-name]')) return;
   setTeamName(e.target.dataset.teamName, e.target.value.trim());
   current = buildData(matchCache, current.title);
+  if (preview) renderPreviewTeamControls();
   show();
 });
 teamLogoFile.onchange = async () => {
@@ -307,6 +421,7 @@ teamLogoFile.onchange = async () => {
   if (!file) return;
   try {
     await storeImage(file, url => setTeamLogo(id, url));
+    if (current && matchCache?.matchId === current.matchId) current = buildData(matchCache, current.title);
     setStatus('✅ Логотип сохранён!');
     show();
   } catch (e) {

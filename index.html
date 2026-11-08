@@ -130,10 +130,60 @@ body { background: #0a0a0c; font-family: 'Inter', sans-serif; color: #fff; -webk
 .season-card td { text-align: center; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-weight: 600; }
 .season-card th:first-child, .season-card td:first-child { text-align: left; white-space: nowrap; }
 </style>
+<style>
+/* Match preview: deliberately separate from the finished-match card. */
+#card.preview-mode { width: 850px; height: 850px; padding: 0; background: #f1f1ef; color: #111522; }
+#card.preview-mode::before { display: none; }
+.preview-art { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(ellipse at 50% 47%, #fff 0%, #f1f1ef 56%, #d9dbdd 100%); }
+.preview-art::before { content: 'MATCH DAY'; position: absolute; top: 145px; left: -95px; width: 1100px; color: rgba(23,28,43,.045); font: italic 900 210px/.85 'Oswald', sans-serif; letter-spacing: -8px; transform: rotate(-12deg); white-space: nowrap; }
+.preview-art::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(135deg, transparent 0 30px, rgba(24,28,39,.018) 31px 32px); }
+.preview-frame { position: absolute; inset: 22px; border: 1px solid rgba(20,25,39,.16); pointer-events: none; }
+.preview-top { position: absolute; top: 38px; left: 55px; right: 55px; display: flex; justify-content: space-between; align-items: center; font: 700 11px 'Inter', sans-serif; letter-spacing: 3px; color: #5d626d; }
+.preview-label { color: #d5152a; }
+.preview-heading { position: absolute; top: 95px; left: 70px; right: 70px; text-align: center; }
+.preview-heading small { display: block; color: #d5152a; font: 800 12px 'Inter', sans-serif; letter-spacing: 4px; }
+.preview-heading h1 { margin-top: 8px; font: 700 35px/1.08 'Oswald', sans-serif; text-transform: uppercase; overflow-wrap: anywhere; }
+.preview-heading p { margin-top: 7px; color: #6f7480; font: 700 11px 'Inter', sans-serif; letter-spacing: 3px; text-transform: uppercase; }
+.preview-versus { position: absolute; top: 250px; left: 42px; right: 42px; display: grid; grid-template-columns: 1fr 112px 1fr; align-items: center; text-align: center; }
+.preview-team { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+.preview-team .lg { width: 190px; height: 190px; filter: drop-shadow(0 14px 18px rgba(20,25,39,.14)); }
+.preview-team .lg .ph { font-size: 82px; }
+.preview-team-name { width: 100%; min-height: 85px; display: flex; align-items: flex-start; justify-content: center; font: italic 700 38px/1.05 'Oswald', sans-serif; text-transform: uppercase; overflow-wrap: anywhere; }
+.preview-team-name.long { font-size: 29px; }
+.preview-vs { align-self: start; padding-top: 66px; color: #d5152a; font: italic 700 54px/1 'Oswald', sans-serif; }
+.preview-info { position: absolute; top: 620px; left: 90px; right: 90px; min-height: 80px; display: grid; grid-template-columns: 1fr 1.35fr 1fr; align-items: stretch; text-align: center; background: #fff; box-shadow: 0 12px 45px rgba(19,24,37,.12); }
+.preview-info > div { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 6px; font: 700 28px/1.1 'Oswald', sans-serif; }
+.preview-info small { display: block; margin-bottom: 5px; color: #7b8089; font: 700 9px 'Inter', sans-serif; letter-spacing: 2px; }
+.preview-info .preview-time { background: #f2fa27; }
+.preview-info .preview-time small { color: #565b1b; }
+.preview-footer { position: absolute; left: 55px; right: 55px; bottom: 48px; display: flex; justify-content: space-between; align-items: center; color: #777c86; font: 700 10px 'Inter', sans-serif; letter-spacing: 2px; }
+.preview-brand { display: flex; align-items: center; gap: 9px; color: #111522; font: 800 12px 'Unbounded', sans-serif; letter-spacing: 0; }
+.preview-brand img { width: 32px; height: 32px; object-fit: contain; }
+.preview-accent { position: absolute; bottom: 0; left: 295px; width: 260px; height: 10px; background: #f2fa27; }
+.preview-fields { display: flex; gap: 8px; flex-wrap: wrap; }
+.preview-fields .field { flex: 1 1 170px; }
+.preview-hint { color: #9b8a8d; font: 500 12px/1.4 'Inter', sans-serif; }
+#card.preview-mode.preview-dark { background: #0b0d14; color: #f6f6f4; }
+.preview-dark .preview-art { background: radial-gradient(ellipse at 50% 43%, #30313c 0%, #151720 50%, #090a0f 100%); }
+.preview-dark .preview-art::before { color: rgba(255,255,255,.055); }
+.preview-dark .preview-art::after { background: repeating-linear-gradient(135deg, transparent 0 30px, rgba(255,255,255,.025) 31px 32px); }
+.preview-dark .preview-frame { border-color: rgba(255,255,255,.2); }
+.preview-dark .preview-top, .preview-dark .preview-heading p, .preview-dark .preview-footer { color: #b2b5bf; }
+.preview-dark .preview-label, .preview-dark .preview-heading small, .preview-dark .preview-vs { color: #ff4454; }
+.preview-dark .preview-team .lg { filter: drop-shadow(0 14px 22px rgba(0,0,0,.45)); }
+.preview-dark .preview-info { background: #242732; box-shadow: 0 12px 45px rgba(0,0,0,.35); }
+.preview-dark .preview-info small { color: #b4b7c0; }
+.preview-dark .preview-info .preview-time { color: #111522; }
+.preview-dark .preview-info .preview-time small { color: #565b1b; }
+.preview-dark .preview-brand { color: #f6f6f4; }
+@media (max-width: 600px) { .tabs { flex-wrap: wrap; } .tab { flex: 1 1 45%; } .bar-actions { flex-wrap: wrap; } }
+</style>
+
 </head>
 <body>
 <div class="tabs">
   <button class="tab active" data-mode="match">Карточка матча</button>
+  <button class="tab" data-mode="preview">Превью</button>
   <button class="tab" data-mode="player">Карточка игрока</button>
   <button class="tab" data-mode="season">Итоги сезона</button>
 </div>
@@ -145,6 +195,30 @@ body { background: #0a0a0c; font-family: 'Inter', sans-serif; color: #fff; -webk
       <button id="create" class="btn primary">Создать</button>
     </div>
     <div id="teamLogos" class="line"></div>
+  </div>
+
+  <div id="previewPanel" class="panel" hidden>
+    <div class="line">
+      <input id="previewLink" class="field" type="text" autocomplete="off" placeholder="Ссылка на предстоящий матч FACEIT">
+      <button id="previewCreate" class="btn primary">Создать превью</button>
+    </div>
+    <div id="previewOptions" class="panel" hidden>
+      <div class="preview-fields">
+        <input id="previewTitle" class="field" type="text" maxlength="90" placeholder="Название турнира" aria-label="Название турнира">
+        <input id="previewSubtitle" class="field" type="text" maxlength="60" placeholder="Этап турнира (необязательно)" aria-label="Этап турнира">
+      </div>
+      <div class="preview-fields">
+        <input id="previewDate" class="field" type="date" aria-label="Дата матча по Москве">
+        <input id="previewTime" class="field" type="time" aria-label="Время матча по Москве">
+        <input id="previewFormat" class="field" type="text" maxlength="12" placeholder="Формат, например BO3" aria-label="Формат матча">
+        <select id="previewTheme" class="field sel" aria-label="Тема превью">
+          <option value="light">Светлая тема</option>
+          <option value="dark">Тёмная тема</option>
+        </select>
+      </div>
+      <div class="preview-hint">Дата и время указаны по Москве (МСК). Названия и логотипы команд сохраняются в этом браузере.</div>
+      <div id="previewTeamLogos" class="line"></div>
+    </div>
   </div>
 
   <div id="playerPanel" class="panel" hidden>
